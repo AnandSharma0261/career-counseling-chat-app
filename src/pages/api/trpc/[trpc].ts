@@ -8,7 +8,7 @@ import { appRouter } from '../../../server/api/root';
 import { createTRPCContext } from '../../../lib/trpc/trpc';
 
 // Export API handler for Next.js with proper typing
-const handler = createNextApiHandler({
+export default createNextApiHandler({
   router: appRouter,
   createContext: createTRPCContext,
   onError:
@@ -19,8 +19,4 @@ const handler = createNextApiHandler({
           );
         }
       : undefined,
-});
-
-export default function trpcHandler(req: NextApiRequest, res: NextApiResponse) {
-  return handler(req, res);
-}
+}) as (req: NextApiRequest, res: NextApiResponse) => Promise<void>;
