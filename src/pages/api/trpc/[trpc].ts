@@ -3,11 +3,12 @@
  * This enables tRPC endpoints at /api/trpc/*
  */
 import { createNextApiHandler } from '@trpc/server/adapters/next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { appRouter } from '../../../server/api/root';
 import { createTRPCContext } from '../../../lib/trpc/trpc';
 
-// Export API handler for Next.js
-export default createNextApiHandler({
+// Export API handler for Next.js with proper typing
+const handler = createNextApiHandler({
   router: appRouter,
   createContext: createTRPCContext,
   onError:
@@ -19,3 +20,7 @@ export default createNextApiHandler({
         }
       : undefined,
 });
+
+export default function trpcHandler(req: NextApiRequest, res: NextApiResponse) {
+  return handler(req, res);
+}
