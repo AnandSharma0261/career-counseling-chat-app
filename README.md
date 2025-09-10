@@ -246,6 +246,55 @@ Edit `src/lib/ai/career-counselor.ts` to modify:
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [Radix UI Documentation](https://www.radix-ui.com/docs)
 
+## 🚀 Deployment
+
+### Vercel Deployment (Recommended)
+
+1. **Push to GitHub:**
+   ```bash
+   git remote add origin https://github.com/yourusername/career-counseling-chat-app.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+2. **Deploy to Vercel:**
+   - Go to [vercel.com](https://vercel.com) and sign in
+   - Click "New Project" and import your GitHub repository
+   - Configure environment variables (see below)
+   - Click "Deploy"
+
+3. **Environment Variables for Vercel:**
+   ```bash
+   GOOGLE_AI_API_KEY=your_actual_gemini_api_key
+   AI_PROVIDER=gemini
+   NEXTAUTH_SECRET=your_production_secret_32_chars
+   NEXTAUTH_URL=https://your-app-name.vercel.app
+   DATABASE_URL=your_production_database_url
+   ```
+
+### Database Setup for Production
+
+**Option 1: Turso (Free SQLite Cloud)**
+```bash
+# Install Turso CLI
+npm install -g @libsql/client
+
+# Visit https://turso.tech and create account
+# Create database and get URL + token
+```
+
+**Option 2: Neon (Free PostgreSQL)**
+- Visit [neon.tech](https://neon.tech)
+- Create free account and database
+- Update schema for PostgreSQL compatibility
+
+### Post-Deployment Steps
+1. Test all chat functionality
+2. Verify AI responses
+3. Check authentication flow
+4. Test responsive design on mobile
+5. Monitor performance and errors
+
 ## 📞 Support
 
 If you encounter any issues:
