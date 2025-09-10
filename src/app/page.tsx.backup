@@ -1,0 +1,409 @@
+/**
+ * Main page component - Career Counseling Chat Application
+ * This is the entry point for the chat interface with authentication
+ */
+'use client';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { api } from '../lib/trpc/client';
+import { ChatInterface } from '../components/chat/chat-interface';
+import { ChatSessionList } from '../components/chat/chat-session-list';
+import { ThemeToggle } from '../components/theme-toggle';
+import { Button } from '../components/ui/button';
+import { Menu, X, Brain, LogOut, User } from 'lucide-react';
+import { type ChatSession, type Message } from '../lib/db/schema';
+
+function HomePage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  
+  // Refs for click outside handling
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // tRPC queries and mutations - must be called before any conditional returns
+  const { data: sessions = [], refetch: refetchSessions, isLoading: sessionsLoading } = 
+    api.chat.getSessions.useQuery({ limit: 50 });
+  
+  const createSessionMutation = api.chat.createSession.useMutation();
+  const sendMessageMutation = api.chat.sendMessage.useMutation();
+  const deleteSessionMutation = api.chat.deleteSession.useMutation();
+
+  // Get current session data
+  const { data: sessionData, refetch: refetchSession } = api.chat.getSession.useQuery(
+    { sessionId: currentSession?.id || '' },
+    { enabled: !!currentSession?.id }
+  );
+
+  // Redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    }
+  }, [status, router]);
+
+  // Update messages when session data changes
+  useEffect(() => {
+    if (sessionData) {
+      setMessages(sessionData.messages);
+      setCurrentSession(sessionData.session);
+    }
+  }, [sessionData]);
+
+  // Handle click outside user menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
+  // Create new chat session
+  const handleNewSession = useCallback(async () => {
+    if (isCreatingSession) return;
+    
+    setIsCreatingSession(true);
+    try {
+      const newSession = await createSessionMutation.mutateAsync({
+        title: 'New Career Discussion',
+      });
+      setCurrentSession(newSession);
+      setMessages([]);
+      await refetchSessions();
+      setIsSidebarOpen(false);
+    } catch (error) {
+      console.error('Failed to create new session:', error);
+    } finally {
+      setIsCreatingSession(false);
+    }
+  }, [createSessionMutation, refetchSessions, isCreatingSession]);
+
+  // Select existing session
+  const handleSelectSession = useCallback(async (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setCurrentSession(session);
+      setIsSidebarOpen(false);
+    }
+  }, [sessions]);
+
+  // Delete session
+  const handleDeleteSession = useCallback(async (sessionId: string) => {
+    try {
+      await deleteSessionMutation.mutateAsync({ sessionId });
+      
+      if (currentSession?.id === sessionId) {
+        setCurrentSession(null);
+        setMessages([]);
+      }
+      
+      await refetchSessions();
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+    }
+  }, [deleteSessionMutation, currentSession, refetchSessions]);
+
+  // Send message
+  const handleSendMessage = useCallback(async (content: string) => {
+    if (!content.trim()) return;
+
+    if (!currentSession) {
+      await handleNewSession();
+      setTimeout(() => handleSendMessage(content), 100);
+      return;
+    }
+
+    try {
+      const userMessage = await sendMessageMutation.mutateAsync({
+        sessionId: currentSession.id,
+        content: content.trim(),
+        role: 'user',
+      });
+
+      setMessages(prev => [...prev, userMessage]);
+      await refetchSession();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  }, [currentSession, sendMessageMutation, refetchSession, handleNewSession]);
+
+  // Show loading while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
+        <div className="text-center">
+          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center mx-auto mb-4 shadow-sm animate-pulse">
+            <Brain className="h-8 w-8 text-white" />
+          </div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!session) {
+    return null;
+  }
+      return;
+    }
+
+    try {
+      const isFirstMessage = messages.length === 0;
+      
+      const result = await sendMessageMutation.mutateAsync({
+        sessionId: currentSession.id,
+        content: content.trim(),
+        isFirstMessage,
+      });
+
+      setMessages(prev => [...prev, result.userMessage, result.assistantMessage]);
+      await refetchSessions();
+      
+      if (isFirstMessage) {
+        await refetchSession();
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // You might want to show a toast notification here
+    }
+  }, [currentSession, messages.length, sendMessageMutation, refetchSessions, refetchSession, handleNewSession]);
+
+  // Handle sign out
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut({ redirect: true, callbackUrl: '/auth/signin' });
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
+  }, []);
+
+  // Auto-select latest session on load
+  useEffect(() => {
+    if (!sessionsLoading && !currentSession) {
+      if (sessions.length === 0) {
+        // Don't auto-create session, let user decide
+      } else {
+        const latestSession = sessions[0];
+        if (latestSession) {
+          setCurrentSession(latestSession);
+        }
+      }
+    }
+  }, [sessions, sessionsLoading, currentSession]);
+
+  // User menu component for reusability
+  const UserMenu = ({ className = "" }: { className?: string }) => (
+    <div className={`relative ${className}`} ref={userMenuRef}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setShowUserMenu(!showUserMenu)}
+        className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+        aria-label="User menu"
+      >
+        {session.user?.image ? (
+          <img 
+            src={session.user.image} 
+            alt={session.user.name || 'User'} 
+            className="h-5 w-5 rounded-full"
+          />
+        ) : (
+          <User className="h-4 w-4" />
+        )}
+      </Button>
+      
+      {showUserMenu && (
+        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-2 z-50">
+          <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              {session.user?.name || 'User'}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {session.user?.email}
+            </p>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
+      {/* Mobile sidebar backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed lg:relative z-50 lg:z-0 h-full w-80 transform transition-transform duration-300 ease-in-out lg:transform-none ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="h-full border-r border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl lg:shadow-none">
+          {/* Desktop Header */}
+          <div className="hidden lg:flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
+                <Brain className="h-4 w-4 text-white" />
+              </div>
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
+                Career Chat
+              </h2>
+            </div>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <UserMenu />
+            </div>
+          </div>
+
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between p-4 lg:hidden border-b border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
+                <Brain className="h-4 w-4 text-white" />
+              </div>
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
+                Career Chat
+              </h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(false)}
+              className="hover:bg-slate-100 dark:hover:bg-slate-800"
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          <ChatSessionList
+            sessions={sessions}
+            currentSessionId={currentSession?.id}
+            onSelectSession={handleSelectSession}
+            onNewSession={handleNewSession}
+            onDeleteSession={handleDeleteSession}
+            isLoading={sessionsLoading}
+          />
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Mobile Header */}
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarOpen(true)}
+            className="hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-semibold bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
+            Career Counselor
+          </h1>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <UserMenu className="lg:hidden" />
+          </div>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
+          {currentSession ? (
+            <ChatInterface
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isLoading={sendMessageMutation.isPending}
+              sessionTitle={currentSession.title}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full p-8">
+              <div className="text-center max-w-md">
+                <div className="relative mb-6">
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto shadow-lg">
+                    <Brain className="h-10 w-10 text-white" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 h-6 w-6 bg-green-500 rounded-full border-2 border-white animate-pulse" aria-hidden="true"></div>
+                </div>
+                <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Career Counselor AI
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+                  Welcome! I'm here to help you navigate your professional journey. Whether you're exploring career options, 
+                  preparing for interviews, or planning your next move, let's start a conversation!
+                </p>
+                <div className="grid grid-cols-1 gap-3 mb-8 text-sm">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                      <span role="img" aria-label="Briefcase">💼</span>
+                    </div>
+                    <span className="text-blue-700 dark:text-blue-300">Career exploration & planning</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
+                    <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                      <span role="img" aria-label="Document">📝</span>
+                    </div>
+                    <span className="text-green-700 dark:text-green-300">Resume & interview guidance</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800">
+                    <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                      <span role="img" aria-label="Target">🎯</span>
+                    </div>
+                    <span className="text-purple-700 dark:text-purple-300">Professional development</span>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleNewSession}
+                  size="lg"
+                  disabled={isCreatingSession}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 px-8 disabled:opacity-50"
+                >
+                  {isCreatingSession ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>✨ Start Your First Chat</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default HomePage;
