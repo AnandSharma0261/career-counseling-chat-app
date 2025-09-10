@@ -8,6 +8,13 @@
       "when": 1757523657599,
       "tag": "0000_eager_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1757540998443,
+      "tag": "0001_panoramic_power_man",
+      "breakpoints": true
     }
   ]
 }
