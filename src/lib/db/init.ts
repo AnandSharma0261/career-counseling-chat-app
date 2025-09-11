@@ -98,5 +98,5 @@ export async function initializeMemoryDatabase() {
 
 // Auto-initialize on import in production
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-  initializeDatabase().catch(console.error);
+  initializeMemoryDatabase().catch(console.error);
 }
