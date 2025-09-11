@@ -8,8 +8,8 @@ import * as schema from './schema';
 
 // Create database client based on environment
 const client = createClient({
-  url: process.env.DATABASE_URL || 'file:sqlite.db',
-  authToken: process.env.DATABASE_AUTH_TOKEN,
+  url: process.env.DATABASE_URL || 'file:./dev.db',
+  authToken: process.env.DATABASE_AUTH_TOKEN, // Only needed for Turso cloud
 });
 
 // Create Drizzle database instance with schema
