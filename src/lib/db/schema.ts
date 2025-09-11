@@ -5,9 +5,18 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
+// UUID generation function that works in all environments
+function generateId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Users table for authentication
 export const users = sqliteTable('users', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
   image: text('image'),
@@ -62,7 +71,7 @@ export const verificationTokens = sqliteTable('verification_tokens', {
 
 // Chat sessions table to group messages
 export const chatSessions = sqliteTable('chat_sessions', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
   userId: text('user_id').references(() => users.id), // Required for authenticated users
   title: text('title').notNull(), // Auto-generated or user-provided session name
   description: text('description'), // Brief description of the conversation topic
@@ -76,7 +85,7 @@ export const chatSessions = sqliteTable('chat_sessions', {
 
 // Messages table to store all chat messages
 export const messages = sqliteTable('messages', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
   sessionId: text('session_id')
     .notNull()
     .references(() => chatSessions.id, { onDelete: 'cascade' }),

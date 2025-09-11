@@ -10,14 +10,14 @@ export async function initializeMemoryDatabase() {
     // Create users table
     await db.run(sql`
       CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
         name TEXT,
         email TEXT UNIQUE NOT NULL,
         email_verified DATETIME,
         image TEXT,
         password TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at INTEGER DEFAULT (unixepoch()),
+        updated_at INTEGER DEFAULT (unixepoch())
       )
     `);
 
@@ -64,11 +64,12 @@ export async function initializeMemoryDatabase() {
     // Create chat_sessions table
     await db.run(sql`
       CREATE TABLE IF NOT EXISTS chat_sessions (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
-        user_id TEXT NOT NULL,
-        title TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+        user_id TEXT,
+        title TEXT NOT NULL,
+        description TEXT,
+        created_at INTEGER DEFAULT (unixepoch()),
+        updated_at INTEGER DEFAULT (unixepoch()),
         is_active INTEGER DEFAULT 1,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
@@ -77,11 +78,11 @@ export async function initializeMemoryDatabase() {
     // Create messages table
     await db.run(sql`
       CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
         session_id TEXT NOT NULL,
         content TEXT NOT NULL,
         role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at INTEGER DEFAULT (unixepoch()),
         status TEXT DEFAULT 'sent',
         metadata TEXT,
         FOREIGN KEY (session_id) REFERENCES chat_sessions (id) ON DELETE CASCADE
