@@ -3,9 +3,15 @@ import bcrypt from 'bcryptjs';
 import { db } from '../../../../lib/db';
 import { users } from '../../../../lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { initializeMemoryDatabase } from '../../../../lib/db/init';
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize memory database if needed (for Vercel)
+    if (process.env.VERCEL && process.env.DATABASE_URL?.startsWith('file:')) {
+      await initializeMemoryDatabase();
+    }
+
     const { name, email, password } = await request.json();
 
     // Validate input

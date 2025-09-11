@@ -8,6 +8,7 @@ import * as schema from './schema';
 
 // Create database client based on environment
 let client;
+let isMemoryDatabase = false;
 
 try {
   const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
@@ -18,6 +19,7 @@ try {
     client = createClient({
       url: ':memory:',
     });
+    isMemoryDatabase = true;
   } else {
     // Use configured database URL (Turso or local)
     client = createClient({
@@ -31,10 +33,19 @@ try {
   client = createClient({
     url: ':memory:',
   });
+  isMemoryDatabase = true;
 }
 
 // Create Drizzle database instance with schema
 export const db = drizzle(client, { schema });
+
+// Initialize memory database if needed
+if (isMemoryDatabase) {
+  // Import and initialize async to avoid circular imports
+  import('./init').then(({ initializeMemoryDatabase }) => {
+    initializeMemoryDatabase();
+  });
+}
 
 // Export database connection for use throughout the application
 export default db;

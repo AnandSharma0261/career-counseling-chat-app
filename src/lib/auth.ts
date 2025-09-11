@@ -49,6 +49,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          // Initialize memory database if needed (for Vercel)
+          if (process.env.VERCEL && process.env.DATABASE_URL?.startsWith('file:')) {
+            const { initializeMemoryDatabase } = await import('./db/init');
+            await initializeMemoryDatabase();
+          }
+
           const user = await db
             .select()
             .from(users)
