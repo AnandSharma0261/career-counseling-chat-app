@@ -6,9 +6,6 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import * as schema from './schema';
 
-// Track initialization state
-let isInitialized = false;
-
 // Create database client based on environment
 let client;
 let isMemoryDatabase = false;
@@ -16,23 +13,32 @@ let isMemoryDatabase = false;
 try {
   const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
   
-  // If running on Vercel and using file database, switch to memory
-  if (process.env.VERCEL && databaseUrl.startsWith('file:')) {
-    console.log('Vercel detected with file database, switching to memory database');
+  console.log(`🔗 Connecting to database: ${databaseUrl.substring(0, 20)}...`);
+  
+  if (databaseUrl.startsWith('libsql://')) {
+    // Turso cloud database
+    console.log('📡 Using Turso cloud database');
+    client = createClient({
+      url: databaseUrl,
+      authToken: process.env.DATABASE_AUTH_TOKEN,
+    });
+  } else if (databaseUrl.startsWith('file:') && process.env.VERCEL) {
+    // Fallback to memory only on Vercel with file database
+    console.log('⚠️  Vercel detected with file database, using memory fallback');
     client = createClient({
       url: ':memory:',
     });
     isMemoryDatabase = true;
   } else {
-    // Use configured database URL (Turso or local)
+    // Local development with file database
+    console.log('💻 Using local file database');
     client = createClient({
       url: databaseUrl,
-      authToken: process.env.DATABASE_AUTH_TOKEN,
     });
   }
 } catch (error) {
   console.error('Database connection error:', error);
-  // Fallback to memory database
+  // Final fallback to memory database
   client = createClient({
     url: ':memory:',
   });
@@ -45,24 +51,20 @@ export const db = drizzle(client, { schema });
 // Initialize database function
 export async function ensureDbInitialized() {
   if (!isMemoryDatabase) {
+    console.log('✅ Using persistent database - no initialization needed');
     return true;
   }
 
   try {
-    // Always reinitialize for memory database on Vercel
+    // Only initialize if using memory database
     const { initializeMemoryDatabase } = await import('./init');
     await initializeMemoryDatabase();
-    console.log('✅ Database ensured and initialized');
+    console.log('✅ Memory database initialized');
     return true;
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     return false;
   }
-}
-
-// Auto-initialize if memory database
-if (isMemoryDatabase) {
-  ensureDbInitialized();
 }
 
 // Export database connection for use throughout the application
