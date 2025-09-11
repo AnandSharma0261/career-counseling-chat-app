@@ -92,6 +92,9 @@ export const chatRouter = createTRPCRouter({
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ ctx, input }) => {
       try {
+        // Ensure database is initialized
+        await ensureDbInitialized();
+        
         // Get session details
         const [session] = await ctx.db
           .select()
