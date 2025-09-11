@@ -6,6 +6,9 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import * as schema from './schema';
 
+// Track initialization state
+let isInitialized = false;
+
 // Create database client based on environment
 let client;
 let isMemoryDatabase = false;
@@ -39,12 +42,27 @@ try {
 // Create Drizzle database instance with schema
 export const db = drizzle(client, { schema });
 
-// Initialize memory database if needed
+// Initialize database function
+export async function ensureDbInitialized() {
+  if (!isMemoryDatabase || isInitialized) {
+    return true;
+  }
+
+  try {
+    const { initializeMemoryDatabase } = await import('./init');
+    await initializeMemoryDatabase();
+    isInitialized = true;
+    console.log('✅ Database initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    return false;
+  }
+}
+
+// Auto-initialize if memory database
 if (isMemoryDatabase) {
-  // Import and initialize async to avoid circular imports
-  import('./init').then(({ initializeMemoryDatabase }) => {
-    initializeMemoryDatabase();
-  });
+  ensureDbInitialized();
 }
 
 // Export database connection for use throughout the application

@@ -8,6 +8,7 @@ import { chatSessions, messages } from '../../../lib/db/schema';
 import { generateCareerAdvice, generateSessionTitle } from '../../../lib/ai/career-counselor';
 import { eq, desc } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { ensureDbInitialized } from '../../../lib/db';
 
 export const chatRouter = createTRPCRouter({
   /**
@@ -23,6 +24,9 @@ export const chatRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Ensure database is initialized
+        await ensureDbInitialized();
+        
         const sessionData = {
           title: input.title || 'New Chat Session',
           description: input.description || null,
@@ -57,6 +61,9 @@ export const chatRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       try {
+        // Ensure database is initialized
+        await ensureDbInitialized();
+        
         const sessions = await ctx.db
           .select()
           .from(chatSessions)
@@ -131,6 +138,9 @@ export const chatRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Ensure database is initialized
+        await ensureDbInitialized();
+        
         // Save user message
         const [userMessage] = await ctx.db
           .insert(messages)
@@ -210,6 +220,9 @@ export const chatRouter = createTRPCRouter({
     .input(z.object({ sessionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
+        // Ensure database is initialized
+        await ensureDbInitialized();
+        
         const deletedSessions = await ctx.db
           .delete(chatSessions)
           .where(eq(chatSessions.id, input.sessionId))
@@ -247,6 +260,9 @@ export const chatRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Ensure database is initialized
+        await ensureDbInitialized();
+        
         const [updatedSession] = await ctx.db
           .update(chatSessions)
           .set({ 

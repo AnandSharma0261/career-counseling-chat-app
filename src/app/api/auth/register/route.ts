@@ -9,7 +9,8 @@ export async function POST(request: NextRequest) {
   try {
     // Initialize memory database if needed (for Vercel)
     if (process.env.VERCEL && process.env.DATABASE_URL?.startsWith('file:')) {
-      await initializeMemoryDatabase();
+      const { ensureDbInitialized } = await import('../../../../lib/db');
+      await ensureDbInitialized();
     }
 
     const { name, email, password } = await request.json();
