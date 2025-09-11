@@ -20,12 +20,18 @@ declare module 'next-auth' {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  // Only use database adapter if not in memory mode
+  ...(process.env.VERCEL && process.env.DATABASE_URL?.startsWith('file:') 
+    ? {} 
+    : {
+        adapter: DrizzleAdapter(db, {
+          usersTable: users,
+          accountsTable: accounts,
+          sessionsTable: sessions,
+          verificationTokensTable: verificationTokens,
+        })
+      }
+  ),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
