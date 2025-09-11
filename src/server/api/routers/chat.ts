@@ -64,6 +64,8 @@ export const chatRouter = createTRPCRouter({
         // Ensure database is initialized
         await ensureDbInitialized();
         
+        console.log(`📋 Fetching sessions for user: ${input.userId || 'anonymous'}`);
+        
         const sessions = await ctx.db
           .select()
           .from(chatSessions)
@@ -72,6 +74,7 @@ export const chatRouter = createTRPCRouter({
           .limit(input.limit)
           .offset(input.offset);
 
+        console.log(`✅ Found ${sessions.length} sessions`);
         return sessions;
       } catch (error) {
         console.error('Error fetching chat sessions:', error);
@@ -141,6 +144,8 @@ export const chatRouter = createTRPCRouter({
         // Ensure database is initialized
         await ensureDbInitialized();
         
+        console.log(`💬 Attempting to save message for session: ${input.sessionId}`);
+        
         // Save user message
         const [userMessage] = await ctx.db
           .insert(messages)
@@ -151,6 +156,11 @@ export const chatRouter = createTRPCRouter({
           })
           .returning();
 
+        console.log('✅ User message saved successfully');
+
+        // Ensure database is initialized before fetching
+        await ensureDbInitialized();
+        
         // Get conversation history for AI context
         const conversationHistory = await ctx.db
           .select()

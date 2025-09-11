@@ -44,15 +44,15 @@ export const db = drizzle(client, { schema });
 
 // Initialize database function
 export async function ensureDbInitialized() {
-  if (!isMemoryDatabase || isInitialized) {
+  if (!isMemoryDatabase) {
     return true;
   }
 
   try {
+    // Always reinitialize for memory database on Vercel
     const { initializeMemoryDatabase } = await import('./init');
     await initializeMemoryDatabase();
-    isInitialized = true;
-    console.log('✅ Database initialized successfully');
+    console.log('✅ Database ensured and initialized');
     return true;
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

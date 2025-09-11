@@ -7,6 +7,9 @@ import { sql } from 'drizzle-orm';
 
 export async function initializeMemoryDatabase() {
   try {
+    // Always try to create tables (IF NOT EXISTS will prevent duplicates)
+    console.log('🔄 Initializing memory database tables...');
+    
     // Create users table
     await db.run(sql`
       CREATE TABLE IF NOT EXISTS users (
