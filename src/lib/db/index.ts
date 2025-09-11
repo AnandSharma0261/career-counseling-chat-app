@@ -50,20 +50,25 @@ export const db = drizzle(client, { schema });
 
 // Initialize database function
 export async function ensureDbInitialized() {
-  if (!isMemoryDatabase) {
-    console.log('✅ Using persistent database - no initialization needed');
-    return true;
-  }
-
   try {
-    // Only initialize if using memory database
-    const { initializeMemoryDatabase } = await import('./init');
-    await initializeMemoryDatabase();
-    console.log('✅ Memory database initialized');
+    // Try to run a simple query to check if tables exist
+    await db.select().from(schema.users).limit(1);
+    console.log('✅ Database tables verified');
     return true;
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
-    return false;
+    console.log('⚠️  Database tables not found, attempting to create...');
+    
+    if (isMemoryDatabase) {
+      // Initialize memory database with tables
+      const { initializeMemoryDatabase } = await import('./init');
+      await initializeMemoryDatabase();
+      console.log('✅ Memory database initialized');
+      return true;
+    } else {
+      // For Turso/cloud databases, tables should be created via migration
+      console.error('❌ Database tables missing. Please run: npm run db:push');
+      throw new Error('Database tables not found. Run migrations first.');
+    }
   }
 }
 
